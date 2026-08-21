@@ -292,7 +292,7 @@ function renderGallery() {
         <span class="gallery-card__duration">${video.duration}</span>
       </div>
       <div class="gallery-card__body">
-        <span class="gallery-card__tag">${video.tag}</span>
+        <span class="gallery-card__tag">${video.tag || "ทั่วไป"}</span>
         <h3 class="gallery-card__title">${video.title}</h3>
         <p class="gallery-card__desc">${video.desc}</p>
       </div>
@@ -381,7 +381,7 @@ function openModal(videoId) {
   const modalTitle = document.getElementById("modalTitle");
   const modalDesc = document.getElementById("modalDesc");
 
-  modalTag.textContent = video.tag;
+  modalTag.textContent = video.tag || "ทั่วไป";
   modalTitle.textContent = video.title;
   modalDesc.textContent = video.desc;
 

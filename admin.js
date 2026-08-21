@@ -45,7 +45,7 @@ function renderVideoList(videos) {
   list.innerHTML = videos.map(v => `
     <li class="clip-item">
       <div class="clip-item__info">
-        <span class="clip-item__tag">${escapeHtml(v.tag || "")}</span>
+        <span class="clip-item__tag">${escapeHtml(v.tag || "ทั่วไป")}</span>
         <span class="clip-item__title">${escapeHtml(v.title || "")}</span>
       </div>
       <button class="clip-item__delete" data-id="${v.id}" aria-label="ลบคลิปนี้">✕</button>
@@ -67,7 +67,7 @@ async function handleAddClip(e) {
   const thumbnail = document.getElementById("fThumb").value.trim();
   const desc = document.getElementById("fDesc").value.trim();
 
-  if (!title || !tag || !duration || !desc) return;
+  if (!title || !duration || !desc) return;
 
   const submitBtn = e.target.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;

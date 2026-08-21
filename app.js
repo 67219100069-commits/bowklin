@@ -78,6 +78,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initNavbar();
   initHeroCanvas();
   initRevealAnimations();
+  initAdminMenu();
   await fetchAllVideos();
   renderGallery();
   initModal();
@@ -122,6 +123,25 @@ function initNavbar() {
   }, { rootMargin: "-40% 0px -50% 0px", threshold: 0 });
 
   sections.forEach(s => observer.observe(s));
+}
+
+/* =========================================================
+   ADMIN MENU
+   Shows a "แผงแอดมิน" link in the navbar, but only once we've
+   confirmed (via isCurrentUserAdmin, from auth.js) that the
+   signed-in user is the site's one admin. Everyone else — signed
+   out visitors included — never sees this link at all.
+========================================================= */
+function initAdminMenu() {
+  const adminLink = document.getElementById("navAdminLink");
+  if (!adminLink || typeof firebase === "undefined") return;
+
+  firebase.auth().onAuthStateChanged(async (user) => {
+    const isAdmin = typeof isCurrentUserAdmin === "function"
+      ? await isCurrentUserAdmin(user)
+      : false;
+    adminLink.hidden = !isAdmin;
+  });
 }
 
 /* =========================================================

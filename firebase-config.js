@@ -19,3 +19,13 @@ firebase.initializeApp(firebaseConfig);
 /* Shared handles used by auth.js / admin.js */
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+/* Keep the admin signed in across page loads/tabs/browser restarts
+   until they explicitly log out. This is Firebase's default on the
+   web, but setting it explicitly protects against browsers/modes
+   (e.g. some private-browsing setups) where the default silently
+   falls back to a weaker, per-tab persistence — which is what makes
+   it feel like you have to log in again every time. */
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch((err) => {
+  console.error("setPersistence failed", err);
+});

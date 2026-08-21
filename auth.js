@@ -26,18 +26,40 @@
 ========================================================= */
 
 const ADMIN_DOC_REF = () => db.collection("admin_config").doc("admin");
+const FIRESTORE_TIMEOUT_MS = 10000;
+
+/* Firestore calls can hang instead of rejecting (blocked network, ad
+   blockers, or a project that doesn't have Firestore turned on yet)
+   — this turns that into a normal rejected promise after N ms so the
+   UI never gets stuck on "กำลังสมัคร…" forever. */
+function withTimeout(promise, ms, timeoutMessage) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(timeoutMessage || "TIMEOUT")), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 /* ---- shared helpers (used by login.html and admin.html) -------------- */
 
 async function getAdminRecord() {
-  const snap = await ADMIN_DOC_REF().get();
+  const snap = await withTimeout(
+    ADMIN_DOC_REF().get(),
+    FIRESTORE_TIMEOUT_MS,
+    "FIRESTORE_TIMEOUT"
+  );
   return snap.exists ? snap.data() : null;
 }
 
 async function isCurrentUserAdmin(user) {
   if (!user) return false;
-  const admin = await getAdminRecord();
-  return !!admin && admin.uid === user.uid;
+  try {
+    const admin = await getAdminRecord();
+    return !!admin && admin.uid === user.uid;
+  } catch (err) {
+    console.error("isCurrentUserAdmin: could not reach Firestore", err);
+    return false;
+  }
 }
 
 function logout() {
@@ -212,7 +234,15 @@ document.addEventListener("DOMContentLoaded", () => {
       // Early bail-out before creating an Auth account, to avoid
       // leaving orphaned accounts behind in the common case.
       // The transaction below is what actually guards the race.
-      const existing = await getAdminRecord().catch(() => null);
+      let existing;
+      try {
+        existing = await getAdminRecord();
+      } catch (err) {
+        console.error("register: could not reach Firestore", err);
+        handleError("เชื่อมต่อฐานข้อมูลไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต/ตัวบล็อกโฆษณา แล้วลองใหม่");
+        clearBusy(btn);
+        return;
+      }
       if (existing) {
         handleError("มีแอดมินของเว็บนี้แล้ว ระบบรับสมัครแอดมินได้เพียงคนเดียวเท่านั้น");
         clearBusy(btn);
@@ -223,30 +253,42 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
       } catch (err) {
+        console.error("register: createUserWithEmailAndPassword failed", err);
         handleError(friendlyFirebaseError(err));
         clearBusy(btn);
         return;
       }
 
       try {
-        await db.runTransaction(async (tx) => {
-          const doc = await tx.get(ADMIN_DOC_REF());
-          if (doc.exists) throw new Error("ADMIN_TAKEN");
-          tx.set(ADMIN_DOC_REF(), {
-            uid: cred.user.uid,
-            email: cred.user.email,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-        });
+        await withTimeout(
+          db.runTransaction(async (tx) => {
+            const doc = await tx.get(ADMIN_DOC_REF());
+            if (doc.exists) throw new Error("ADMIN_TAKEN");
+            tx.set(ADMIN_DOC_REF(), {
+              uid: cred.user.uid,
+              email: cred.user.email,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          }),
+          FIRESTORE_TIMEOUT_MS,
+          "FIRESTORE_TIMEOUT"
+        );
 
         btnText.textContent = "สมัครสำเร็จ! กำลังพาไป…";
         handleSuccess();
       } catch (err) {
-        // Someone else claimed the admin slot in the meantime (or the
-        // security rules rejected the write) — undo the new account.
+        console.error("register: admin claim transaction failed", err);
+        // Someone else claimed the admin slot in the meantime, the
+        // security rules rejected the write, or Firestore couldn't
+        // be reached — undo the new Auth account either way.
         await cred.user.delete().catch(() => {});
         await firebase.auth().signOut().catch(() => {});
-        handleError("มีแอดมินของเว็บนี้แล้ว ระบบรับสมัครแอดมินได้เพียงคนเดียวเท่านั้น");
+
+        if (err && err.message === "FIRESTORE_TIMEOUT") {
+          handleError("เชื่อมต่อฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง");
+        } else {
+          handleError("มีแอดมินของเว็บนี้แล้ว ระบบรับสมัครแอดมินได้เพียงคนเดียวเท่านั้น");
+        }
         clearBusy(btn);
       }
     });

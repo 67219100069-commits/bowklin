@@ -75,17 +75,10 @@
       <!-- LIST -->
       <section class="admin-card">
         <h2 class="admin-card__title">คลิปทั้งหมดในระบบ</h2>
+        <p class="admin-card__hint">คลิปทั้งหมดที่นี่มาจากที่แอดมินเพิ่มเองเท่านั้น กดปุ่ม ✕ เพื่อลบคลิปใดก็ได้</p>
 
-        <div class="clip-list-group">
-          <h3 class="clip-list-group__label">คลิปเริ่มต้น (แก้ไขได้ที่ไฟล์ app.js)</h3>
-          <ul class="clip-list" id="defaultClipList"></ul>
-        </div>
-
-        <div class="clip-list-group">
-          <h3 class="clip-list-group__label">คลิปที่คุณเพิ่มเอง</h3>
-          <ul class="clip-list" id="customClipList"></ul>
-          <p class="clip-list-empty" id="customClipEmpty">ยังไม่มีคลิปที่เพิ่มเอง — ลองเพิ่มจากฟอร์มด้านซ้ายได้เลย</p>
-        </div>
+        <ul class="clip-list" id="clipList"></ul>
+        <p class="clip-list-empty" id="clipListEmpty">ยังไม่มีคลิปในระบบ — ลองเพิ่มจากฟอร์มด้านซ้ายได้เลย</p>
       </section>
     </div>
   </div>

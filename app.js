@@ -1,64 +1,9 @@
 /* =========================================================
    DATA
-   Replace videoSrc / thumbnail paths with your own assets.
+   Video clips are NOT hardcoded anymore — every clip in the
+   gallery is added by the admin through admin.html and lives in
+   Firestore (collection "videos"). See fetchAllVideos() below.
 ========================================================= */
-
-const videoData = [
-  {
-    id: "fake-news",
-    tag: "มาตรา 14",
-    title: "แชร์ข่าวปลอม อันตรายกว่าที่คิด",
-    desc: "การนำเข้าหรือแชร์ข้อมูลอันเป็นเท็จเข้าสู่ระบบคอมพิวเตอร์ที่อาจก่อให้เกิดความเสียหาย หรือสร้างความตื่นตระหนกแก่ประชาชน เข้าข่ายความผิดตามมาตรา 14 แห่ง พ.ร.บ.คอมพิวเตอร์",
-    duration: "02:14",
-    thumbnail: "",
-    videoSrc: "" // <!-- INSERT MOTION GRAPHIC MP4 HERE: assets/videos/fake-news.mp4 -->
-  },
-  {
-    id: "hacking",
-    tag: "มาตรา 5 และ 7",
-    title: "แฮกรหัสผ่าน = เข้าถึงระบบโดยมิชอบ",
-    desc: "การเข้าถึงระบบคอมพิวเตอร์หรือข้อมูลคอมพิวเตอร์ของผู้อื่นโดยไม่ได้รับอนุญาต แม้จะไม่ได้สร้างความเสียหายใด ๆ ก็ถือว่ามีความผิดตามกฎหมาย",
-    duration: "01:58",
-    thumbnail: "",
-    videoSrc: "" // <!-- INSERT MOTION GRAPHIC MP4 HERE: assets/videos/hacking.mp4 -->
-  },
-  {
-    id: "photo-consent",
-    tag: "มาตรา 16",
-    title: "โพสต์ภาพคนอื่นโดยไม่ได้รับอนุญาต",
-    desc: "การนำภาพของผู้อื่นที่เกิดจากการตัดต่อ ดัดแปลง หรือนำมาเผยแพร่โดยไม่ได้รับความยินยอม จนทำให้ผู้นั้นเสียชื่อเสียงหรือถูกดูหมิ่น ถือเป็นความผิดตามมาตรา 16",
-    duration: "02:40",
-    thumbnail: "",
-    videoSrc: "" // <!-- INSERT MOTION GRAPHIC MP4 HERE: assets/videos/photo-consent.mp4 -->
-  },
-  {
-    id: "malware",
-    tag: "มาตรา 12",
-    title: "ปล่อยไวรัส มัลแวร์ เจตนาทำลายระบบ",
-    desc: "การจำหน่ายหรือเผยแพร่ชุดคำสั่งที่จัดทำขึ้นเพื่อใช้ในการกระทำความผิด เช่น ไวรัสคอมพิวเตอร์ หรือมัลแวร์ ถือเป็นความผิดที่มีบทลงโทษรุนแรง",
-    duration: "03:05",
-    thumbnail: "",
-    videoSrc: "" // <!-- INSERT MOTION GRAPHIC MP4 HERE: assets/videos/malware.mp4 -->
-  },
-  {
-    id: "phishing",
-    tag: "มาตรา 14",
-    title: "ฟิชชิ่งและการหลอกลวงทางออนไลน์",
-    desc: "การปลอมแปลงเว็บไซต์หรือข้อความเพื่อหลอกเอาข้อมูลส่วนบุคคล เช่น รหัสผ่านหรือข้อมูลบัตรเครดิต เข้าข่ายนำเข้าข้อมูลอันเป็นเท็จตามมาตรา 14",
-    duration: "02:22",
-    thumbnail: "",
-    videoSrc: "" // <!-- INSERT MOTION GRAPHIC MP4 HERE: assets/videos/phishing.mp4 -->
-  },
-  {
-    id: "cyberbully",
-    tag: "มาตรา 14(1)",
-    title: "ไซเบอร์บูลลี่และข้อความหมิ่นประมาท",
-    desc: "การโพสต์ข้อความคุกคาม ข่มขู่ หรือหมิ่นประมาทผู้อื่นบนโลกออนไลน์ในลักษณะที่ก่อให้เกิดความเสียหาย ถือเป็นความผิดตามกฎหมายเช่นเดียวกับการกระทำในโลกจริง",
-    duration: "02:50",
-    thumbnail: "",
-    videoSrc: "" // <!-- INSERT MOTION GRAPHIC MP4 HERE: assets/videos/cyberbully.mp4 -->
-  }
-];
 
 const scenarioData = [
   {
@@ -129,10 +74,11 @@ const scenarioIcons = {
 /* =========================================================
    INIT
 ========================================================= */
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   initNavbar();
   initHeroCanvas();
   initRevealAnimations();
+  await fetchAllVideos();
   renderGallery();
   initModal();
   renderScenarios();
@@ -266,21 +212,26 @@ function initRevealAnimations() {
 }
 
 /* =========================================================
-   CUSTOM CLIPS (added via admin.html, stored in localStorage)
-   Merges owner-added clips with the built-in videoData list so
-   the gallery always reflects what's been added through /admin.html.
+   CLIPS (added via admin.html, stored in Firestore)
+   Every visitor loads the same list of clips straight from the
+   "videos" collection, in the order the admin added them (newest
+   first). See admin.js for how clips are added/removed.
 ========================================================= */
-const CUSTOM_VIDEOS_KEY = "smartActCustomVideos";
+let cachedVideos = [];
+
+async function fetchAllVideos() {
+  try {
+    const snap = await db.collection("videos").orderBy("createdAt", "desc").get();
+    cachedVideos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (err) {
+    console.error("fetchAllVideos failed", err);
+    cachedVideos = [];
+  }
+  return cachedVideos;
+}
 
 function getAllVideos() {
-  let custom = [];
-  try {
-    custom = JSON.parse(localStorage.getItem(CUSTOM_VIDEOS_KEY)) || [];
-  } catch {
-    custom = [];
-  }
-  // Owner-added clips appear first
-  return [...custom, ...videoData];
+  return cachedVideos;
 }
 
 /* =========================================================
@@ -291,6 +242,11 @@ function renderGallery() {
   if (!grid) return;
 
   const allVideos = getAllVideos();
+
+  if (allVideos.length === 0) {
+    grid.innerHTML = `<p class="gallery__empty">ยังไม่มีคลิปโมชั่นกราฟิกในระบบ — แอดมินสามารถเพิ่มคลิปได้ที่หน้าแผงแอดมิน</p>`;
+    return;
+  }
 
   grid.innerHTML = allVideos.map(video => `
     <article class="gallery-card" data-video-id="${video.id}" tabindex="0" role="button" aria-label="เปิดวิดีโอ ${video.title}">
@@ -451,7 +407,13 @@ function runSmartCheck(scenarioId, btnEl) {
   const watchBtn = document.getElementById("watchMoreBtn");
   watchBtn.onclick = () => {
     document.getElementById("gallery").scrollIntoView({ behavior: "smooth" });
-    setTimeout(() => openModal(scenario.linkedVideoId), 500);
+    // Clip ids are now Firestore-generated, so match by legal section
+    // (the clip's "tag" field) instead of the old fixed slug.
+    const match = getAllVideos().find(v => v.tag === scenario.section)
+      || getAllVideos().find(v => v.id === scenario.linkedVideoId);
+    if (match) {
+      setTimeout(() => openModal(match.id), 500);
+    }
   };
 }
 

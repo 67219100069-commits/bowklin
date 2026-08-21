@@ -1,21 +1,10 @@
 /* =========================================================
    ADMIN DASHBOARD
-   Manages a localStorage-backed list of "custom" clips that
-   the main site (app.js) merges into the gallery at render time.
+   Manages the "videos" collection in Firestore — this is the
+   single source of truth the main site (app.js) reads from, so
+   every clip the admin adds or removes here shows up (or
+   disappears) for every visitor immediately.
 ========================================================= */
-
-const CUSTOM_VIDEOS_KEY = "smartActCustomVideos";
-
-// Mirrors the ids/titles/tags from app.js videoData, for display only.
-// Edit the actual content in app.js — this list is read-only reference.
-const defaultVideosReference = [
-  { id: "fake-news", title: "แชร์ข่าวปลอม อันตรายกว่าที่คิด", tag: "มาตรา 14" },
-  { id: "hacking", title: "แฮกรหัสผ่าน = เข้าถึงระบบโดยมิชอบ", tag: "มาตรา 5 และ 7" },
-  { id: "photo-consent", title: "โพสต์ภาพคนอื่นโดยไม่ได้รับอนุญาต", tag: "มาตรา 16" },
-  { id: "malware", title: "ปล่อยไวรัส มัลแวร์ เจตนาทำลายระบบ", tag: "มาตรา 12" },
-  { id: "phishing", title: "ฟิชชิ่งและการหลอกลวงทางออนไลน์", tag: "มาตรา 14" },
-  { id: "cyberbully", title: "ไซเบอร์บูลลี่และข้อความหมิ่นประมาท", tag: "มาตรา 14(1)" }
-];
 
 document.addEventListener("DOMContentLoaded", async () => {
   // Route guard — resolves only once we've confirmed this Firebase
@@ -27,49 +16,37 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("logoutBtn").addEventListener("click", logout);
 
-  renderDefaultList();
-  renderCustomList();
-
+  listenToVideos();
   document.getElementById("addClipForm").addEventListener("submit", handleAddClip);
 });
 
-function getCustomVideos() {
-  try {
-    return JSON.parse(localStorage.getItem(CUSTOM_VIDEOS_KEY)) || [];
-  } catch {
-    return [];
-  }
+/* Live-updating list — stays in sync even if a clip is added from
+   another tab/session, no manual refresh needed. */
+function listenToVideos() {
+  db.collection("videos").orderBy("createdAt", "desc").onSnapshot(
+    (snap) => {
+      const videos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderVideoList(videos);
+    },
+    (err) => {
+      console.error("listenToVideos failed", err);
+      showHint("โหลดรายการคลิปไม่สำเร็จ ลองรีเฟรชหน้า");
+    }
+  );
 }
 
-function saveCustomVideos(videos) {
-  localStorage.setItem(CUSTOM_VIDEOS_KEY, JSON.stringify(videos));
-}
-
-function renderDefaultList() {
-  const list = document.getElementById("defaultClipList");
-  list.innerHTML = defaultVideosReference.map(v => `
-    <li class="clip-item clip-item--locked">
-      <div class="clip-item__info">
-        <span class="clip-item__tag">${escapeHtml(v.tag)}</span>
-        <span class="clip-item__title">${escapeHtml(v.title)}</span>
-      </div>
-      <span class="clip-item__lock" title="แก้ไขได้ที่ app.js เท่านั้น">🔒</span>
-    </li>
-  `).join("");
-}
-
-function renderCustomList() {
-  const list = document.getElementById("customClipList");
-  const emptyMsg = document.getElementById("customClipEmpty");
-  const videos = getCustomVideos();
+function renderVideoList(videos) {
+  const list = document.getElementById("clipList");
+  const emptyMsg = document.getElementById("clipListEmpty");
+  if (!list) return;
 
   emptyMsg.hidden = videos.length > 0;
 
   list.innerHTML = videos.map(v => `
     <li class="clip-item">
       <div class="clip-item__info">
-        <span class="clip-item__tag">${escapeHtml(v.tag)}</span>
-        <span class="clip-item__title">${escapeHtml(v.title)}</span>
+        <span class="clip-item__tag">${escapeHtml(v.tag || "")}</span>
+        <span class="clip-item__title">${escapeHtml(v.title || "")}</span>
       </div>
       <button class="clip-item__delete" data-id="${v.id}" aria-label="ลบคลิปนี้">✕</button>
     </li>
@@ -80,7 +57,7 @@ function renderCustomList() {
   });
 }
 
-function handleAddClip(e) {
+async function handleAddClip(e) {
   e.preventDefault();
 
   const title = document.getElementById("fTitle").value.trim();
@@ -92,29 +69,36 @@ function handleAddClip(e) {
 
   if (!title || !tag || !duration || !desc) return;
 
-  const newClip = {
-    id: "custom-" + Date.now(),
-    title,
-    tag,
-    duration,
-    videoSrc,
-    thumbnail,
-    desc
-  };
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
 
-  const videos = getCustomVideos();
-  videos.unshift(newClip);
-  saveCustomVideos(videos);
-
-  e.target.reset();
-  renderCustomList();
-  showHint("เพิ่มคลิปเรียบร้อยแล้ว ✓ ไปดูผลลัพธ์ในหน้าเว็บไซต์หลักได้เลย");
+  try {
+    await db.collection("videos").add({
+      title,
+      tag,
+      duration,
+      videoSrc,
+      thumbnail,
+      desc,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    e.target.reset();
+    showHint("เพิ่มคลิปเรียบร้อยแล้ว ✓ ไปดูผลลัพธ์ในหน้าเว็บไซต์หลักได้เลย");
+  } catch (err) {
+    console.error("handleAddClip failed", err);
+    showHint("เพิ่มคลิปไม่สำเร็จ ลองใหม่อีกครั้ง");
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
 }
 
-function deleteClip(id) {
-  const videos = getCustomVideos().filter(v => v.id !== id);
-  saveCustomVideos(videos);
-  renderCustomList();
+async function deleteClip(id) {
+  try {
+    await db.collection("videos").doc(id).delete();
+  } catch (err) {
+    console.error("deleteClip failed", err);
+    showHint("ลบคลิปไม่สำเร็จ ลองใหม่อีกครั้ง");
+  }
 }
 
 function showHint(message) {

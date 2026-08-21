@@ -1,12 +1,11 @@
 rules_version = '2';
 
 // Paste this into Firebase Console → Firestore Database → Rules,
-// then click "Publish". Without this, the "only the first person
-// who registers becomes admin" rule only lives in auth.js and can
-// be bypassed by anyone editing requests from the browser console.
+// then click "Publish".
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ---- who the admin is -------------------------------------------
     match /admin_config/admin {
       // Anyone signed in can check who the admin is (needed by the
       // login/admin route guards).
@@ -14,14 +13,25 @@ service cloud.firestore {
 
       // Only allowed to be CREATED — and only if it doesn't exist yet,
       // and only by the person claiming to be that admin (uid must
-      // match the caller). This is what actually enforces
-      // "first registrant wins" even if someone tampers with the client.
+      // match the caller). This enforces "first registrant wins".
       allow create: if request.auth != null
                     && request.auth.uid == request.resource.data.uid
                     && !exists(/databases/$(database)/documents/admin_config/admin);
 
       // Nobody can ever change or delete who the admin is from the client.
       allow update, delete: if false;
+    }
+
+    // ---- video clips shown in the public gallery ----------------------
+    match /videos/{videoId} {
+      // Anyone can view the gallery, signed in or not.
+      allow read: if true;
+
+      // Only the confirmed admin (uid stored in admin_config/admin) can
+      // add, edit, or delete clips.
+      allow create, update, delete: if request.auth != null
+        && exists(/databases/$(database)/documents/admin_config/admin)
+        && get(/databases/$(database)/documents/admin_config/admin).data.uid == request.auth.uid;
     }
   }
 }

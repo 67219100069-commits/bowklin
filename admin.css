@@ -257,6 +257,12 @@
   animation: fadeUp 0.3s var(--ease-out) both;
 }
 
+.admin-card__hint {
+  font-size: 0.82rem;
+  color: var(--text-faint);
+  margin: -10px 0 18px;
+}
+
 .clip-list-group { margin-bottom: 28px; }
 .clip-list-group:last-child { margin-bottom: 0; }
 .clip-list-group__label {

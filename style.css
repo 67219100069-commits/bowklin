@@ -337,6 +337,14 @@ ul { list-style: none; }
   gap: 24px;
 }
 
+.gallery__empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
 .gallery-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);

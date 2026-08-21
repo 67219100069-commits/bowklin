@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>จัดการคลิป — แผงแอดมิน</title>
+<meta name="robots" content="noindex, nofollow">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700;800&family=Sarabun:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-page">
+
+<header class="admin-bar">
+  <div class="admin-bar__inner">
+    <a href="index.html" class="admin-bar__brand">
+      <span class="admin-bar__dot"></span>
+      แผงแอดมิน
+      <span class="admin-bar__email" id="adminEmail"></span>
+    </a>
+    <div class="admin-bar__actions">
+      <a href="index.html" class="btn btn--ghost btn--sm" target="_blank" rel="noopener">ดูหน้าเว็บไซต์ ↗</a>
+      <button class="btn btn--ghost btn--sm" id="logoutBtn">ออกจากระบบ</button>
+    </div>
+  </div>
+</header>
+
+<main class="admin-main">
+  <div class="admin-main__inner">
+
+    <section class="admin-intro">
+      <p class="section__eyebrow">จัดการเนื้อหา</p>
+      <h1 class="section__title">คลิปโมชั่นกราฟิก</h1>
+      <p class="section__desc">เพิ่มคลิปใหม่ที่นี่ แล้วมันจะไปโผล่ในแกลเลอรีของหน้าเว็บหลักทันที (บันทึกไว้ในเบราว์เซอร์นี้)</p>
+    </section>
+
+    <div class="admin-grid">
+      <!-- ADD FORM -->
+      <section class="admin-card">
+        <h2 class="admin-card__title">+ เพิ่มคลิปใหม่</h2>
+        <form id="addClipForm" class="clip-form">
+          <div class="field">
+            <label for="fTitle">ชื่อคลิป</label>
+            <input type="text" id="fTitle" placeholder="เช่น แชร์ข่าวปลอมมีความผิดยังไง" required>
+          </div>
+          <div class="field">
+            <label for="fTag">มาตราที่เกี่ยวข้อง</label>
+            <input type="text" id="fTag" placeholder="เช่น มาตรา 14" required>
+          </div>
+          <div class="field">
+            <label for="fDuration">ความยาวคลิป</label>
+            <input type="text" id="fDuration" placeholder="เช่น 02:30" required>
+          </div>
+          <div class="field">
+            <label for="fVideoSrc">ลิงก์วิดีโอ (.mp4 หรือ URL)</label>
+            <input type="text" id="fVideoSrc" placeholder="assets/videos/your-clip.mp4">
+          </div>
+          <div class="field">
+            <label for="fThumb">ลิงก์รูปปก (ไม่ใส่ก็ได้)</label>
+            <input type="text" id="fThumb" placeholder="assets/thumbs/your-clip.jpg">
+          </div>
+          <div class="field">
+            <label for="fDesc">คำอธิบายสั้น ๆ</label>
+            <textarea id="fDesc" rows="3" placeholder="อธิบายเนื้อหากฎหมายในคลิปนี้" required></textarea>
+          </div>
+          <button type="submit" class="btn btn--primary btn--full">เพิ่มคลิปนี้ลงแกลเลอรี</button>
+          <p class="form-hint" id="formHint" hidden></p>
+        </form>
+      </section>
+
+      <!-- LIST -->
+      <section class="admin-card">
+        <h2 class="admin-card__title">คลิปทั้งหมดในระบบ</h2>
+
+        <div class="clip-list-group">
+          <h3 class="clip-list-group__label">คลิปเริ่มต้น (แก้ไขได้ที่ไฟล์ app.js)</h3>
+          <ul class="clip-list" id="defaultClipList"></ul>
+        </div>
+
+        <div class="clip-list-group">
+          <h3 class="clip-list-group__label">คลิปที่คุณเพิ่มเอง</h3>
+          <ul class="clip-list" id="customClipList"></ul>
+          <p class="clip-list-empty" id="customClipEmpty">ยังไม่มีคลิปที่เพิ่มเอง — ลองเพิ่มจากฟอร์มด้านซ้ายได้เลย</p>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="auth.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

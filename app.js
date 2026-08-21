@@ -294,6 +294,22 @@ function renderGallery() {
 ========================================================= */
 let lastFocusedEl = null;
 
+// Recognizes youtube.com/watch, youtu.be, /embed/, and /shorts/ links.
+function getYouTubeVideoId(url) {
+  if (!url) return null;
+  const patterns = [
+    /youtu\.be\/([a-zA-Z0-9_-]{6,})/,
+    /youtube\.com\/watch\?[^#]*v=([a-zA-Z0-9_-]{6,})/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{6,})/,
+    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{6,})/
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+
 function initModal() {
   document.querySelectorAll("[data-close-modal]").forEach(el => {
     el.addEventListener("click", closeModal);
@@ -319,12 +335,39 @@ function openModal(videoId) {
   modalTitle.textContent = video.title;
   modalDesc.textContent = video.desc;
 
-  // Reset video source. Replace video.videoSrc above with your actual file path.
+  const wrap = modalVideo.parentElement; // .modal__video-wrap
+  let iframe = wrap.querySelector("iframe");
+  const ytId = getYouTubeVideoId(video.videoSrc);
+
   modalVideo.pause();
-  modalVideo.innerHTML = video.videoSrc
-    ? `<source src="${video.videoSrc}" type="video/mp4">`
-    : `<!-- INSERT MOTION GRAPHIC MP4 HERE for "${video.id}" -->`;
-  modalVideo.load();
+
+  if (ytId) {
+    // YouTube clip — swap in an iframe embed, hide the <video> tag.
+    modalVideo.hidden = true;
+    modalVideo.removeAttribute("src");
+    modalVideo.innerHTML = "";
+
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.className = "modal__video";
+      iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+      iframe.allowFullscreen = true;
+      wrap.appendChild(iframe);
+    }
+    iframe.hidden = false;
+    iframe.src = `https://www.youtube.com/embed/${ytId}`;
+  } else {
+    // Direct .mp4 link (or nothing set yet) — use the native <video> tag.
+    if (iframe) {
+      iframe.hidden = true;
+      iframe.src = "";
+    }
+    modalVideo.hidden = false;
+    modalVideo.innerHTML = video.videoSrc
+      ? `<source src="${video.videoSrc}" type="video/mp4">`
+      : `<!-- INSERT MOTION GRAPHIC MP4 HERE for "${video.id}" -->`;
+    modalVideo.load();
+  }
 
   modal.classList.add("is-open");
   modal.setAttribute("aria-hidden", "false");
@@ -341,6 +384,11 @@ function closeModal() {
   modal.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
   modalVideo.pause();
+
+  // Clearing the iframe src is what actually stops a YouTube embed
+  // from continuing to play in the background.
+  const iframe = modalVideo.parentElement.querySelector("iframe");
+  if (iframe) iframe.src = "";
 
   if (lastFocusedEl) lastFocusedEl.focus();
 }

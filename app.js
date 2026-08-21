@@ -237,6 +237,16 @@ function getAllVideos() {
 /* =========================================================
    GALLERY
 ========================================================= */
+// Prefer the thumbnail the admin explicitly set; if there isn't one
+// and the clip is a YouTube link, fall back to YouTube's own thumbnail
+// so cards don't sit blank just because the admin skipped that field.
+function getThumbnailUrl(video) {
+  if (video.thumbnail && video.thumbnail.trim()) return video.thumbnail.trim();
+  const ytId = getYouTubeVideoId(video.videoSrc);
+  if (ytId) return `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+  return null;
+}
+
 function renderGallery() {
   const grid = document.getElementById("galleryGrid");
   if (!grid) return;
@@ -248,11 +258,14 @@ function renderGallery() {
     return;
   }
 
-  grid.innerHTML = allVideos.map(video => `
+  grid.innerHTML = allVideos.map(video => {
+    const thumbUrl = getThumbnailUrl(video);
+    return `
     <article class="gallery-card" data-video-id="${video.id}" tabindex="0" role="button" aria-label="เปิดวิดีโอ ${video.title}">
       <div class="gallery-card__thumb">
-        <div class="gallery-card__thumb-pattern"></div>
-        <!-- INSERT THUMBNAIL IMAGE HERE: <img src="assets/thumbs/${video.id}.jpg" alt="${video.title}"> -->
+        ${thumbUrl
+          ? `<img src="${thumbUrl}" alt="${video.title}" loading="lazy" onerror="this.remove()">`
+          : `<div class="gallery-card__thumb-pattern"></div>`}
         <button class="gallery-card__play" tabindex="-1" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         </button>
@@ -264,7 +277,8 @@ function renderGallery() {
         <p class="gallery-card__desc">${video.desc}</p>
       </div>
     </article>
-  `).join("");
+  `;
+  }).join("");
 
   // Reveal animation for cards (staggered)
   const cards = grid.querySelectorAll(".gallery-card");

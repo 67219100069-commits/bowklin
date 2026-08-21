@@ -294,20 +294,36 @@ function renderGallery() {
 ========================================================= */
 let lastFocusedEl = null;
 
-// Recognizes youtube.com/watch, youtu.be, /embed/, and /shorts/ links.
+// Recognizes youtube.com/watch (any param order, incl. m.youtube.com),
+// youtu.be, /embed/, /shorts/, /live/ links — and a bare 11-char video ID
+// pasted on its own. YouTube IDs are always exactly 11 chars, so we match
+// that exact length instead of "6 or more", which could silently fail to
+// match on some real-world share-link shapes (extra params, trailing
+// tracking codes, etc.) and left the modal with nothing to show.
 function getYouTubeVideoId(url) {
   if (!url) return null;
+  url = url.trim();
+
+  // Someone pasted just the ID itself, with no URL around it.
+  if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
+
   const patterns = [
-    /youtu\.be\/([a-zA-Z0-9_-]{6,})/,
-    /youtube\.com\/watch\?[^#]*v=([a-zA-Z0-9_-]{6,})/,
-    /youtube\.com\/embed\/([a-zA-Z0-9_-]{6,})/,
-    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{6,})/
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/watch\?(?:[^#]*&)?v=([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/(?:embed|shorts|live)\/([a-zA-Z0-9_-]{11})/
   ];
   for (const p of patterns) {
     const m = url.match(p);
     if (m) return m[1];
   }
   return null;
+}
+
+// A direct, playable video file link (as opposed to a YouTube page link
+// that just happens not to match any pattern above, e.g. a playlist-only
+// URL). Used to decide whether the native <video> tag stands a chance.
+function isDirectVideoFile(url) {
+  return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test((url || "").trim());
 }
 
 function initModal() {
@@ -341,8 +357,11 @@ function openModal(videoId) {
 
   modalVideo.pause();
 
+  let notice = wrap.querySelector(".modal__video-notice");
+
   if (ytId) {
     // YouTube clip — swap in an iframe embed, hide the <video> tag.
+    if (notice) notice.hidden = true;
     modalVideo.hidden = true;
     modalVideo.removeAttribute("src");
     modalVideo.innerHTML = "";
@@ -356,17 +375,39 @@ function openModal(videoId) {
     }
     iframe.hidden = false;
     iframe.src = `https://www.youtube.com/embed/${ytId}`;
-  } else {
-    // Direct .mp4 link (or nothing set yet) — use the native <video> tag.
+  } else if (isDirectVideoFile(video.videoSrc)) {
+    // Direct .mp4/.webm/etc. link — use the native <video> tag.
+    if (notice) notice.hidden = true;
     if (iframe) {
       iframe.hidden = true;
       iframe.src = "";
     }
     modalVideo.hidden = false;
-    modalVideo.innerHTML = video.videoSrc
-      ? `<source src="${video.videoSrc}" type="video/mp4">`
-      : `<!-- INSERT MOTION GRAPHIC MP4 HERE for "${video.id}" -->`;
+    modalVideo.innerHTML = `<source src="${video.videoSrc}">`;
     modalVideo.load();
+  } else {
+    // No video set, or a link we can't recognize as either a YouTube
+    // page or a direct video file — show a visible message instead of
+    // silently leaving a blank/black player (this used to happen for
+    // any YouTube share-link shape the old regexes didn't catch, or
+    // for links like Google Drive that can't be played directly).
+    if (iframe) {
+      iframe.hidden = true;
+      iframe.src = "";
+    }
+    modalVideo.hidden = true;
+    modalVideo.removeAttribute("src");
+    modalVideo.innerHTML = "";
+
+    if (!notice) {
+      notice = document.createElement("div");
+      notice.className = "modal__video modal__video-notice";
+      wrap.appendChild(notice);
+    }
+    notice.hidden = false;
+    notice.textContent = video.videoSrc
+      ? "ลิงก์วิดีโอนี้เปิดเล่นไม่ได้ (รองรับเฉพาะลิงก์ YouTube หรือลิงก์ไฟล์ .mp4/.webm โดยตรง) — ลองแก้ลิงก์ในหน้าแอดมิน"
+      : "ยังไม่ได้ใส่ลิงก์วิดีโอสำหรับคลิปนี้ — เพิ่มได้ที่หน้าแผงแอดมิน";
   }
 
   modal.classList.add("is-open");
